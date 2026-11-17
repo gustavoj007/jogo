@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Caça-palavras de Arquitetura Computacional</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topo">
+    <div class="bandeira" aria-hidden="true"></div>
+    <div class="topo-conteudo">
+      <h1>Caça-palavras de Arquitetura Computacional</h1>
+      <p>Uma prova de endurance em 3 fases: ache os termos na pista antes da bandeira quadriculada.</p>
+    </div>
+    <div class="zebra" aria-hidden="true"></div>
+  </header>
+
+  <main class="jogo">
+    <section class="painel-grade" aria-label="Tabuleiro">
+      <div class="hud">
+        <div class="medidor medidor-nivel">
+          <span class="medidor-nome">Fase</span>
+          <strong id="nivel">1 de 3</strong>
+        </div>
+        <div class="medidor">
+          <span class="medidor-nome">Termos</span>
+          <strong id="contador" aria-live="polite">0 de 5 palavras</strong>
+        </div>
+        <div class="medidor">
+          <span class="medidor-nome">Tempo</span>
+          <strong id="tempo">00:00</strong>
+        </div>
+        <div class="medidor">
+          <span class="medidor-nome">Dicas usadas</span>
+          <strong id="dicas">0</strong>
+        </div>
+        <div class="botoes">
+          <button type="button" id="btn-dica" class="btn btn-dica">Dica</button>
+          <button type="button" id="btn-reiniciar" class="btn">Reiniciar</button>
+        </div>
+      </div>
+
+      <p id="mensagem" class="mensagem" aria-live="polite"></p>
+
+      <div id="final" class="final" hidden>
+        <span id="final-texto"></span>
+        <button type="button" id="btn-final" class="btn btn-dica"></button>
+      </div>
+
+      <div class="grade-rolagem">
+        <div id="grade" class="grade" role="group" aria-label="Letras do caça-palavras"></div>
+      </div>
+    </section>
+
+    <aside class="torre" aria-label="Termos procurados">
+      <h2>Termos procurados</h2>
+      <p class="torre-ajuda">Cada termo mostra uma pista e o número de letras. Nas duas primeiras fases, também a letra inicial. Clique num termo para escolhê-lo e use o botão Dica.</p>
+      <ol id="lista" class="lista"></ol>
+    </aside>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
