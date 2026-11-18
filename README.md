@@ -2,7 +2,7 @@
 
 Jogo de caça-palavras com tema de corrida de endurance (WEC), feito em HTML, CSS e JavaScript puros, para treinar os termos de Tópicos de Arquitetura Computacional (Sprint 3).
 
-**Jogue aqui:** https://SEU-USUARIO.github.io/arqcomp-cruzadinha/
+**Jogue aqui:** https://gustavoj007.github.io/arqcomp-cruzadinha/
 
 ## Como jogar
 
