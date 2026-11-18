@@ -95,11 +95,13 @@ body {
   cursor: pointer;
 }
 .btn:hover { background: #ffffff1a; }
+.btn-reiniciar { min-width: 11em; }
 .btn-dica { background: var(--amarelo); border-color: var(--amarelo); color: #141414; }
 .btn-dica:hover { background: #ffe14d; }
 .btn:focus-visible, .linha:focus-visible, .cel:focus-visible { outline: 3px solid var(--amarelo); outline-offset: 2px; }
 
-.mensagem { margin: 0 0 12px; max-width: 62ch; color: var(--suave); font-size: .95rem; min-height: 2.9em; }
+.mensagem { margin: 0 0 12px; max-width: 62ch; color: var(--suave); font-size: .95rem; height: 5.8em;
+  overflow-y: auto; }
 .mensagem.destaque { color: var(--texto); }
 .mensagem.erro { color: #ff8a80; }
 .mensagem.sucesso { color: #7be0a6; font-weight: 600; }
@@ -224,6 +226,7 @@ body {
   .cel.errada { animation: none; }
 }
 @media (max-width: 700px) {
+  .mensagem { height: 7.3em; }
   .jogo { padding: 16px 8px 40px; }
   .grade { padding: 6px; gap: 1px; --cel: min(var(--cel-max, 34px), calc((100vw - 54px) / var(--n, 16))); }
   .botoes { margin-left: 0; width: 100%; }

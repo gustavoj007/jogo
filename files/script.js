@@ -11,16 +11,16 @@ const TERMOS = [
   { resposta: 'REGISTRADORES', pista: 'Minúsculos espaços dentro da CPU, os mais velozes, que guardam o dado em uso.' },
   { resposta: 'RAM', pista: 'Memória principal e volátil, onde ficam programas e dados em uso.' },
   { resposta: 'ROM', pista: 'Memória não volátil gravada na fabricação, cujo conteúdo o usuário não altera.' },
-  { resposta: 'EEPROM', pista: 'Memória não volátil que pode ser apagada e regravada eletricamente, byte a byte.' },
-  { resposta: 'FLASH', pista: 'Memória não volátil regravável, apagada em blocos, usada em pen drives e SSDs.' },
+  { resposta: 'EEPROM', pista: 'Memória não volátil que permite regravar dados byte a byte, comum em microcontroladores.' },
+  { resposta: 'FLASH', pista: 'Memória não volátil regravável, apagada em blocos, usada em pen drives e celulares.' },
   { resposta: 'CACHE', pista: 'Memória pequena e veloz que guarda cópias de dados muito usados perto da CPU.' },
   { resposta: 'MEMORIADEMASSA', pista: 'Guarda arquivos e programas de forma permanente e em grande volume, como HD ou SSD.' },
   { resposta: 'DMA', pista: 'Mecanismo que move dados entre periféricos e a RAM sem ocupar a CPU.' },
   { resposta: 'ADDRESSBUS', pista: 'Via de mão única pela qual a CPU informa qual posição de memória acessar.' },
   { resposta: 'DATABUS', pista: 'Caminho bidirecional que transporta o conteúdo trocado entre CPU, memória e periféricos.' },
   { resposta: 'MICROCONTROLADOR', pista: 'Chip único que reúne processador, memória e portas de entrada e saída, comum no Arduino.' },
-  { resposta: 'DUALCORE', pista: 'Processador com um par de núcleos de execução no mesmo chip.' },
-  { resposta: 'QUADCORE', pista: 'Processador com quatro núcleos de execução no mesmo chip.' }
+  { resposta: 'DUALCORE', pista: 'Processador com um par de núcleos de execução.' },
+  { resposta: 'QUADCORE', pista: 'Processador com quatro núcleos de execução.' }
 ];
 
 /* ---------- direções [passo na linha, passo na coluna] ---------- */
@@ -49,12 +49,13 @@ const NOME_DIRECAO = {
 
 /* ---------- as 3 fases ---------- */
 const PALAVRAS_POR_FASE = 5;
+const MAX_DICAS_POR_PALAVRA = 2;
 const FASES = [
   { nome: 'Qualificação', tam: 12,
-    dirs: [DIR.D, DIR.B],
+    dirs: [DIR.D, DIR.B, DIR.DB],
     inicial: true, dicaDirecao: true, letras: 'alfabeto' },
   { nome: 'Corrida', tam: 14,
-    dirs: [DIR.D, DIR.B, DIR.DB, DIR.E],
+    dirs: [DIR.D, DIR.B, DIR.DB, DIR.CD, DIR.E],
     inicial: true, dicaDirecao: true, letras: 'misto' },
   { nome: '24 Horas', tam: 16,
     dirs: TODAS_DIRECOES,
@@ -193,7 +194,8 @@ let inicioArrasto = null;
 let fimArrasto = null;
 let previaAtual = [];
 let selecionada = null;   // termo escolhido na lista
-let dicaCel = null;
+let dicaCels = [];        // casas destacadas pela dica atual
+let dicaPalavra = null;   // termo ao qual a dica atual pertence
 let achadas = 0;
 let segundos = 0;         // tempo total da partida
 let dicasUsadas = 0;      // dicas da partida inteira
@@ -246,8 +248,9 @@ function limparAncora() {
   ancora = null;
 }
 function limparDica() {
-  if (dicaCel) dicaCel.el.classList.remove('dica');
-  dicaCel = null;
+  dicaCels.forEach(c => c.el.classList.remove('dica'));
+  dicaCels = [];
+  dicaPalavra = null;
 }
 function mensagem(texto, tipo) {
   mensagemEl.textContent = texto;
@@ -271,18 +274,21 @@ function atualizarContador() {
   contadorEl.textContent = achadas + ' de ' + PALAVRAS.length + ' palavras';
 }
 function rotuloDoTermo(p) {
-  return p.resposta.length + ' letras' + (cfg.inicial ? ' · começa com ' + p.resposta[0] : '');
+  return p.resposta.length + ' letras' + (cfg.inicial ? ' · começa com ' + p.resposta[0] : '') +
+    (p.dicas ? ' · dicas ' + p.dicas + '/' + MAX_DICAS_POR_PALAVRA : '');
 }
 function mensagemInicial() {
   const setas = cfg.dirs.map(d => SETA[d[0] + ',' + d[1]]).join(' ');
   const invertidas = cfg.dirs.some(d => d[0] < 0 || d[1] < 0);
-  return 'Fase ' + (nivelAtual + 1) + ' (' + cfg.nome + '): arraste da primeira à última letra de um termo, ' +
-    'ou toque na primeira e depois na última. Nesta fase as palavras seguem estas direções: ' + setas + '.' +
-    (invertidas ? ' Algumas aparecem de trás para frente.' : '');
+  const diagonais = cfg.dirs.some(d => d[0] !== 0 && d[1] !== 0);
+  return 'Fase ' + (nivelAtual + 1) + ' · ' + cfg.nome + '. Arraste de uma ponta à outra do termo, ou toque nas duas. ' +
+    'Direções: ' + setas + (invertidas ? ' (algumas de trás para frente)' : '') + '.' +
+    (diagonais ? ' Na diagonal, arraste em linha reta.' : '');
 }
 
 /* ---------- montagem de um nível ---------- */
 function iniciarNivel(indice) {
+  if (typeof cancelarConfirmacao === 'function') cancelarConfirmacao();
   nivelAtual = indice;
   const termosDaFase = partida[indice];
   cfg = { ...FASES[indice], termos: termosDaFase };
@@ -293,12 +299,12 @@ function iniciarNivel(indice) {
 
   const { grade, colocadas } = gerarTabuleiro(cfg);
   const pistas = Object.fromEntries(TERMOS.map(t => [t.resposta, t.pista]));
-  PALAVRAS = embaralhar(colocadas).map(p => ({ ...p, pista: pistas[p.resposta], achada: false }));
+  PALAVRAS = embaralhar(colocadas).map(p => ({ ...p, pista: pistas[p.resposta], achada: false, dicas: 0 }));
 
   // estado
   pararRelogio();
   ancora = null; arrastando = false; inicioArrasto = null; fimArrasto = null;
-  previaAtual = []; selecionada = null; dicaCel = null; achadas = 0;
+  previaAtual = []; selecionada = null; dicaCels = []; dicaPalavra = null; achadas = 0;
   segundosNoInicioDoNivel = segundos;
   dicasNoInicioDoNivel = dicasUsadas;
 
@@ -397,7 +403,7 @@ function marcarAchada(p, caminho) {
   p.linhaEl.classList.add('achada', 'cor-' + p.cor);
   p.posEl.textContent = 'P' + achadas;
   p.tituloEl.textContent = p.resposta;
-  if (dicaCel && dicaCel.r === p.linha && dicaCel.c === p.coluna) limparDica();
+  if (dicaPalavra === p) limparDica();
   atualizarContador();
 
   if (achadas < PALAVRAS.length) {
@@ -501,21 +507,50 @@ function escolherPalavra(p) {
   p.linhaEl.classList.add('sel');
 }
 
+// Cada termo aceita até 2 dicas. A dica só é contada quando realmente revela algo:
+//   1ª dica: marca a casa onde o termo começa;
+//   2ª dica: marca também a última letra e diz a direção.
+// Clicar sem efeito (fase concluída, termo sem dicas sobrando) não gasta nem conta dica.
 function pedirDica() {
-  const alvo = selecionada && !selecionada.achada ? selecionada : PALAVRAS.find(x => !x.achada);
-  if (!alvo) return;
+  if (achadas === PALAVRAS.length) {
+    mensagem('Todos os termos desta fase já foram encontrados.', 'destaque');
+    return;
+  }
+  let alvo = selecionada && !selecionada.achada ? selecionada : null;
+  if (!alvo) alvo = PALAVRAS.find(x => !x.achada && x.dicas < MAX_DICAS_POR_PALAVRA);
+  if (!alvo) {
+    mensagem('Os termos que faltam já usaram as ' + MAX_DICAS_POR_PALAVRA + ' dicas. Agora é com você!', 'destaque');
+    return;
+  }
+  if (alvo.dicas >= MAX_DICAS_POR_PALAVRA) {
+    mensagem('Este termo já usou as ' + MAX_DICAS_POR_PALAVRA + ' dicas. Escolha outro termo ou continue procurando.', 'destaque');
+    return;
+  }
+
   escolherPalavra(alvo);
-  limparDica();
-  dicaCel = cels[alvo.linha][alvo.coluna];
-  dicaCel.el.classList.add('dica');
+  alvo.dicas++;
   dicasUsadas++;
   dicasEl.textContent = dicasUsadas;
+  alvo.tituloEl.textContent = rotuloDoTermo(alvo);
   iniciarRelogio();
-  if (cfg.dicaDirecao) {
-    mensagem('Dica: o termo de ' + alvo.resposta.length + ' letras que começa com "' + alvo.resposta[0] +
-      '" começa na casa destacada e segue ' + NOME_DIRECAO[alvo.dl + ',' + alvo.dc] + '.', 'destaque');
+
+  limparDica();
+  const tamanhoPalavra = alvo.resposta.length - 1;
+  const inicio = cels[alvo.linha][alvo.coluna];
+  const fim = cels[alvo.linha + alvo.dl * tamanhoPalavra][alvo.coluna + alvo.dc * tamanhoPalavra];
+  dicaPalavra = alvo;
+  dicaCels = alvo.dicas === 1 ? [inicio] : [inicio, fim];
+  dicaCels.forEach(c => c.el.classList.add('dica'));
+
+  const direcao = NOME_DIRECAO[alvo.dl + ',' + alvo.dc];
+  if (alvo.dicas === 1) {
+    mensagem(cfg.dicaDirecao
+      ? 'Dica 1 de 2: o termo de ' + alvo.resposta.length + ' letras que começa com "' + alvo.resposta[0] +
+        '" começa na casa destacada e segue ' + direcao + '.'
+      : 'Dica 1 de 2: o termo escolhido, de ' + alvo.resposta.length + ' letras, começa na casa destacada. A direção é com você.',
+    'destaque');
   } else {
-    mensagem('Dica: o termo escolhido, de ' + alvo.resposta.length + ' letras, começa na casa destacada. A direção é com você.', 'destaque');
+    mensagem('Dica 2 de 2: as casas destacadas são a primeira e a última letra do termo, que segue ' + direcao + '.', 'destaque');
   }
 }
 
@@ -527,14 +562,33 @@ function reiniciarTudo() {
   iniciarNivel(0);
 }
 
+// Reiniciar com progresso pede um segundo clique (sem janela do navegador, que pode ser bloqueada).
+const btnReiniciar = document.getElementById('btn-reiniciar');
+let esperandoConfirmacao = null;
+
+function cancelarConfirmacao() {
+  clearTimeout(esperandoConfirmacao);
+  esperandoConfirmacao = null;
+  btnReiniciar.textContent = 'Reiniciar';
+}
+
 function pedirReinicio() {
   const temProgresso = nivelAtual > 0 || achadas > 0;
-  if (temProgresso && !window.confirm('Reiniciar volta à fase 1 e sorteia tudo de novo, inclusive as palavras. Continuar?')) return;
+  if (temProgresso && !esperandoConfirmacao) {
+    btnReiniciar.textContent = 'Confirmar reinício';
+    mensagem('Reiniciar volta à fase 1 e sorteia tudo de novo, inclusive as palavras. Clique em "Confirmar reinício" para continuar.', 'destaque');
+    esperandoConfirmacao = setTimeout(() => {
+      cancelarConfirmacao();
+      if (mensagemEl.textContent.startsWith('Reiniciar volta')) mensagem(mensagemInicial());
+    }, 4000);
+    return;
+  }
+  cancelarConfirmacao();
   reiniciarTudo();
 }
 
 document.getElementById('btn-dica').addEventListener('click', pedirDica);
-document.getElementById('btn-reiniciar').addEventListener('click', pedirReinicio);
+btnReiniciar.addEventListener('click', pedirReinicio);
 btnFinal.addEventListener('click', () => { if (acaoFinal) acaoFinal(); });
 
 reiniciarTudo();
